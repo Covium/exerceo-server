@@ -49,3 +49,5 @@ npm run start:dev
 ```
 
 The API listens on `http://localhost:3000`.
+
+Production Compose is `docker-compose.prod.yml`. CI is `workflow_dispatch` only (Actions → Docker); it does not build or deploy on push.
