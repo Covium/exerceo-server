@@ -1,0 +1,120 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                String   @id @default(uuid())
+  login             String   @unique
+  passwordHash      String
+  displayName       String
+  language          String   @default("en")
+  weeklyWorkoutGoal Int      @default(3)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  memberships         GroupMember[]
+  sentInvitations     GroupInvitation[] @relation("InvitationFrom")
+  receivedInvitations GroupInvitation[] @relation("InvitationTo")
+  workouts            Workout[]
+  measurements        Measurement[]
+  dailyActivities     DailyActivity[]
+}
+
+model Group {
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members     GroupMember[]
+  invitations GroupInvitation[]
+}
+
+model GroupMember {
+  id       String   @id @default(uuid())
+  groupId  String
+  userId   String
+  role     String   @default("member")
+  joinedAt DateTime @default(now())
+
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, userId])
+  @@index([userId])
+}
+
+model GroupInvitation {
+  id         String   @id @default(uuid())
+  groupId    String
+  fromUserId String
+  toUserId   String
+  status     String   @default("pending")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  group    Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  fromUser User  @relation("InvitationFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser   User  @relation("InvitationTo", fields: [toUserId], references: [id], onDelete: Cascade)
+
+  @@index([toUserId, status])
+  @@index([groupId])
+}
+
+model Workout {
+  id              String   @id @default(uuid())
+  userId          String
+  date            DateTime @db.Date
+  durationMinutes Int?
+  source          String
+  externalId      String
+  qualifies       Boolean  @default(true)
+  createdAt       DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, source, externalId])
+  @@index([userId, date])
+}
+
+model Measurement {
+  id         String   @id @default(uuid())
+  userId     String
+  type       String
+  value      Decimal  @db.Decimal(10, 2)
+  unit       String
+  timestamp  DateTime
+  source     String
+  externalId String
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, source, externalId])
+  @@index([userId, type, timestamp])
+}
+
+model DailyActivity {
+  id             String   @id @default(uuid())
+  userId         String
+  date           DateTime @db.Date
+  workedOut      Boolean  @default(false)
+  workoutCount   Int      @default(0)
+  workoutMinutes Int      @default(0)
+  steps          Int?
+  activeCalories Int?
+  weight         Decimal? @db.Decimal(6, 2)
+  bodyFat        Decimal? @db.Decimal(5, 2)
+  syncedAt       DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([userId, date])
+}
