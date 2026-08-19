@@ -78,6 +78,56 @@ export function weeklyStreak(
   return streak;
 }
 
+export type GroupMemberWeek = {
+  days: QualifyingDay[];
+  weeklyGoal: number;
+};
+
+function membersMetWeeklyGoal(
+  members: readonly GroupMemberWeek[],
+  weekStart: Date,
+): boolean {
+  const weekEnd = endOfIsoWeek(weekStart);
+  return members.every(
+    (member) =>
+      member.weeklyGoal > 0 &&
+      countQualifyingDays(member.days, weekStart, weekEnd) >= member.weeklyGoal,
+  );
+}
+
+export function groupWeeklyStreak(
+  members: readonly GroupMemberWeek[],
+  today: Date,
+  since: Date,
+): number {
+  if (
+    members.length === 0 ||
+    members.some((member) => member.weeklyGoal <= 0)
+  ) {
+    return 0;
+  }
+
+  const firstEligibleWeek = startOfIsoWeek(since);
+  let weekStart = startOfIsoWeek(today);
+
+  if (!membersMetWeeklyGoal(members, weekStart)) {
+    weekStart = addDays(weekStart, -7);
+  }
+
+  let streak = 0;
+  for (let i = 0; i < 520; i += 1) {
+    if (formatDateOnly(weekStart) < formatDateOnly(firstEligibleWeek)) {
+      break;
+    }
+    if (!membersMetWeeklyGoal(members, weekStart)) {
+      break;
+    }
+    streak += 1;
+    weekStart = addDays(weekStart, -7);
+  }
+  return streak;
+}
+
 export function dailyStreak(days: QualifyingDay[], today: Date): number {
   const byDate = new Map(
     days.map((day) => [formatDateOnly(day.date), day.workedOut]),

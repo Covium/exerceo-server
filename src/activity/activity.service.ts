@@ -7,6 +7,7 @@ import {
   dailyStreak,
   endOfIsoWeek,
   formatDateOnly,
+  groupWeeklyStreak,
   parseDateOnly,
   startOfIsoWeek,
   weeklyStreak,
@@ -110,17 +111,15 @@ export class ActivityService {
             },
           });
 
-    const groups = memberships.map((membership) => ({
-      id: membership.group.id,
-      name: membership.group.name,
-      members: membership.group.members.map((member) => {
-        const memberHistory = memberDays
+    const groups = memberships.map((membership) => {
+      const memberStates = membership.group.members.map((member) => {
+        const days = memberDays
           .filter((day) => day.userId === member.userId)
           .map((day) => ({ date: day.date, workedOut: day.workedOut }));
         const todayWorkedOut =
-          memberHistory.find((day) => formatDateOnly(day.date) === todayValue)
+          days.find((day) => formatDateOnly(day.date) === todayValue)
             ?.workedOut ?? false;
-        const weekQualifying = memberHistory.filter((day) => {
+        const weekQualifying = days.filter((day) => {
           const key = formatDateOnly(day.date);
           return (
             day.workedOut &&
@@ -129,20 +128,43 @@ export class ActivityService {
           );
         }).length;
         return {
-          userId: member.user.id,
-          login: member.user.login,
-          displayName: member.user.displayName,
-          todayWorkedOut,
-          weekQualifying,
-          weekTarget: member.user.weeklyWorkoutGoal,
-          weeklyStreak: weeklyStreak(
-            memberHistory,
-            member.user.weeklyWorkoutGoal,
-            today,
-          ),
+          days,
+          weeklyGoal: member.user.weeklyWorkoutGoal,
+          joinedAt: member.joinedAt,
+          status: {
+            userId: member.user.id,
+            login: member.user.login,
+            displayName: member.user.displayName,
+            todayWorkedOut,
+            weekQualifying,
+            weekTarget: member.user.weeklyWorkoutGoal,
+            weeklyStreak: weeklyStreak(
+              days,
+              member.user.weeklyWorkoutGoal,
+              today,
+            ),
+          },
         };
-      }),
-    }));
+      });
+      const togetherSince = memberStates.reduce(
+        (latest, member) =>
+          member.joinedAt > latest ? member.joinedAt : latest,
+        membership.group.createdAt,
+      );
+      return {
+        id: membership.group.id,
+        name: membership.group.name,
+        groupStreak: groupWeeklyStreak(
+          memberStates.map((member) => ({
+            days: member.days,
+            weeklyGoal: member.weeklyGoal,
+          })),
+          today,
+          togetherSince,
+        ),
+        members: memberStates.map((member) => member.status),
+      };
+    });
 
     return {
       user: {
