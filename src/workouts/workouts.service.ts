@@ -2,10 +2,14 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '@/prisma/prisma.service';
 import { CreateManualWorkoutDto } from '@/workouts/dto/create-manual-workout.dto';
 import { parseDateOnly } from '@/common/utils/dates';
+import { RealtimeFanoutService } from '@/realtime/realtime.fanout';
 
 @Injectable()
 export class WorkoutsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly fanout: RealtimeFanoutService,
+  ) {}
 
   async markManual(userId: string, dto: CreateManualWorkoutDto) {
     const date = parseDateOnly(dto.date);
@@ -64,6 +68,7 @@ export class WorkoutsService {
       });
     });
 
+    await this.fanout.onActivityChanged(userId, dto.date);
     return { date: dto.date, workedOut: true };
   }
 

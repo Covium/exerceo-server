@@ -7,6 +7,7 @@ import { GroupsModule } from '@/groups/groups.module';
 import { WorkoutsModule } from '@/workouts/workouts.module';
 import { ActivityModule } from '@/activity/activity.module';
 import { MeasurementsModule } from '@/measurements/measurements.module';
+import { RealtimeModule } from '@/realtime/realtime.module';
 import { HealthController } from '@/health.controller';
 
 @Module({
@@ -20,6 +21,7 @@ import { HealthController } from '@/health.controller';
     WorkoutsModule,
     ActivityModule,
     MeasurementsModule,
+    RealtimeModule,
   ],
 })
 export class AppModule {}

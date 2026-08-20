@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import type { CorsOptions } from '@nestjs/common/interfaces/external/cors-options.interface';
+import { IoAdapter } from '@nestjs/platform-socket.io';
 import { AppModule } from '@/app.module';
 
 function corsOrigin(): CorsOptions['origin'] {
@@ -23,6 +24,7 @@ function corsOrigin(): CorsOptions['origin'] {
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  app.useWebSocketAdapter(new IoAdapter(app));
   app.enableCors({
     origin: corsOrigin(),
     credentials: true,

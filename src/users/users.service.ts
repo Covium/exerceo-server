@@ -2,12 +2,14 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '@/prisma/prisma.service';
 import { UpdateUserDto } from '@/users/dto/update-user.dto';
 import { AuthService } from '@/auth/auth.service';
+import { RealtimeFanoutService } from '@/realtime/realtime.fanout';
 
 @Injectable()
 export class UsersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auth: AuthService,
+    private readonly fanout: RealtimeFanoutService,
   ) {}
 
   async getMe(userId: string) {
@@ -27,6 +29,9 @@ export class UsersService {
         weeklyWorkoutGoal: dto.weeklyWorkoutGoal,
       },
     });
+    if (dto.displayName !== undefined || dto.weeklyWorkoutGoal !== undefined) {
+      await this.fanout.onProfileChanged(userId);
+    }
     return this.auth.toPublic(user);
   }
 

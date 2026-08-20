@@ -7,13 +7,17 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '@/prisma/prisma.service';
 import { CreateGroupDto, InviteDto } from '@/groups/dto/group.dto';
+import { RealtimeFanoutService } from '@/realtime/realtime.fanout';
 
 @Injectable()
 export class GroupsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly fanout: RealtimeFanoutService,
+  ) {}
 
   async create(userId: string, dto: CreateGroupDto) {
-    return this.prisma.group.create({
+    const group = await this.prisma.group.create({
       data: {
         name: dto.name.trim(),
         members: {
@@ -21,6 +25,8 @@ export class GroupsService {
         },
       },
     });
+    await this.fanout.onGroupCreated(userId, group.id);
+    return group;
   }
 
   list(userId: string) {
@@ -66,10 +72,11 @@ export class GroupsService {
       where: { groupId, toUserId: target.id, status: 'pending' },
     });
     if (existing) {
+      await this.fanout.onInvitationCreated(existing.id);
       return existing;
     }
 
-    return this.prisma.groupInvitation.create({
+    const invitation = await this.prisma.groupInvitation.create({
       data: {
         groupId,
         fromUserId: userId,
@@ -77,6 +84,8 @@ export class GroupsService {
         status: 'pending',
       },
     });
+    await this.fanout.onInvitationCreated(invitation.id);
+    return invitation;
   }
 
   async accept(userId: string, invitationId: string) {
@@ -104,6 +113,11 @@ export class GroupsService {
       }),
     ]);
 
+    await this.fanout.onInvitationAccepted(
+      userId,
+      invitationId,
+      invitation.groupId,
+    );
     return { accepted: true, groupId: invitation.groupId };
   }
 
@@ -121,6 +135,7 @@ export class GroupsService {
       where: { id: invitationId },
       data: { status: 'declined' },
     });
+    await this.fanout.onInvitationRemoved(userId, invitationId);
     return { declined: true };
   }
 
@@ -141,6 +156,7 @@ export class GroupsService {
       await this.prisma.group.delete({ where: { id: groupId } });
     }
 
+    await this.fanout.onMemberLeft(userId, groupId);
     return { left: true };
   }
 
